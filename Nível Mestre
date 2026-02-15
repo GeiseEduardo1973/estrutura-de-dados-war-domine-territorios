@@ -1,0 +1,222 @@
+// Criado por Geise Severo Eduardo - Jogo WAR (Etapa 3)
+// Matéria: Estrutura de Dados em C
+// Graduações: Bacharelado em Ciências da Computação & Bacharelado em Engenharia de Software
+// Instituição: Estácio
+// Linguagem: C++
+
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <ctime>
+#include <iostream>
+
+using namespace std;
+
+// Cores ANSI
+#define RED          "\x1b[31m"
+#define GREEN        "\x1b[32m"
+#define YELLOW       "\x1b[33m"
+#define PINK         "\x1b[35m"
+#define WHITE        "\x1b[37m"
+#define LIGHT_PURPLE "\x1b[95m"
+#define RESET        "\x1b[0m"
+
+// [cite: 24] Estrutura conforme Requisito Funcional
+struct Territorio {
+    char nome[30];
+    char cor[20];
+    int tropas;
+    int continenteId;
+};
+
+struct Jogador {
+    char nome[30];
+    char* missao; // [cite: 11] Alocação dinâmica com malloc
+    char cor[20];
+    int sequenciaVitorias;
+};
+
+// [cite: 17] Protótipos das funções
+void atacar(Territorio* atacante, Territorio* defensor, Jogador* jAtual);
+void exibirTabuleiro(Territorio* mapa, int n);
+void autoPreencher(Territorio* mapa, int n);
+void atribuirMissao(char** destino, const char* missoes[], int totalMissoes);
+int verificarMissao(Jogador* j, Territorio* mapa, int tamanho);
+void liberarMemoria(Territorio* mapa, Jogador* jogador);
+
+// Dados Globais
+const char* cores[] = {"Vermelho", "Pink", "Amarelo", "Verde", "Lilas", "Branco"};
+const char* nomesPaises[] = {
+    "Brasil", "Argentina", "Chile",           // ID 1
+    "Mexico", "EUA", "Canada",                // ID 2
+    "Portugal", "Franca", "Alemanha", "Italia",// ID 3
+    "China", "India", "Japao", "Coreia",       // ID 4
+    "Egito", "Africa do Sul", "Angola", "Nigeria" // ID 5
+};
+int idsContinentes[] = {1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5};
+
+// [cite: 9] Vetor de missões estratégicas
+const char* listaMissoes[] = {
+    "Conquistar 3 territorios seguidos",
+    "Eliminar todas as tropas da cor Vermelho",
+    "Conquistar 2 continentes",
+    "Ocupar 5 territorios com pelo menos 3 tropas cada",
+    "Conquistar a America do Sul",
+    "Conquistar a Asia"
+};
+
+int main() {
+    srand(time(NULL)); // [cite: 32]
+    int n = 18;
+
+    cout << LIGHT_PURPLE << "===================================================" << endl;
+    cout << "WAR ESTRUTURADO - ETAPA FINAL" << endl;
+    cout << "===================================================" << RESET << endl;
+
+    Jogador p1;
+    strcpy(p1.nome, "Jogador 1");
+    strcpy(p1.cor, "Verde");
+    p1.sequenciaVitorias = 0;
+
+    // [cite: 10, 19] Atribuição por referência
+    atribuirMissao(&p1.missao, listaMissoes, 6);
+
+    //  Exibe a missão apenas uma vez no início
+    cout << "\n--- SUA MISSAO (" << p1.cor << ") ---" << endl;
+    cout << YELLOW << p1.missao << RESET << endl;
+
+    // [cite: 25] Alocação dinâmica do mapa
+    Territorio* mapa = (Territorio*) malloc(n * sizeof(Territorio));
+    if (!mapa) return 1;
+
+    autoPreencher(mapa, n);
+
+    int opcao = -1;
+    while (opcao != 0) {
+        exibirTabuleiro(mapa, n);
+
+        // --- MENU DE ACOES (Igual ao vídeo) ---
+        cout << "\n--- MENU DE ACOES ---" << endl;
+        cout << "1 - Atacar" << endl;
+        cout << "2 - Verificar Missao" << endl;
+        cout << "0 - Sair" << endl;
+        cout << "Escolha sua acao: ";
+        cin >> opcao;
+
+        if (opcao == 1) {
+            int atq, def;
+            cout << "ID Atacante: "; cin >> atq;
+            cout << "ID Defensor: "; cin >> def;
+
+            if (atq >= 0 && atq < n && def >= 0 && def < n) {
+                // [cite: 33] Validação: Não atacar a própria cor
+                if (strcmp(mapa[atq].cor, mapa[def].cor) == 0) {
+                    cout << RED << "\nErro: Voce nao pode atacar seu proprio exercito!" << RESET << endl;
+                } else {
+                    atacar(&mapa[atq], &mapa[def], &p1);
+                }
+            }
+        }
+        else if (opcao == 2) {
+            // [cite: 12] Verificação da missão
+            if (verificarMissao(&p1, mapa, n)) {
+                cout << GREEN << "\nVITÓRIA ATINGIDA! Missão cumprida: " << p1.missao << RESET << endl;
+                break;
+            } else {
+                cout << YELLOW << "\nMissão ainda não cumprida. Continue tentando!" << RESET << endl;
+            }
+        }
+    }
+
+    liberarMemoria(mapa, &p1); // [cite: 29, 34]
+    return 0;
+}
+
+// --- Implementação das Funções ---
+
+void autoPreencher(Territorio* mapa, int n) {
+    for (int i = 0; i < n; i++) {
+        strcpy(mapa[i].nome, nomesPaises[i]);
+        mapa[i].continenteId = idsContinentes[i];
+        mapa[i].tropas = 3;
+        strcpy(mapa[i].cor, cores[i / 3]);
+    }
+}
+
+void atribuirMissao(char** destino, const char* missoes[], int totalMissoes) {
+    int indice = rand() % totalMissoes;
+    *destino = (char*) malloc((strlen(missoes[indice]) + 1) * sizeof(char));
+    if (*destino) strcpy(*destino, missoes[indice]);
+}
+
+void atacar(Territorio* atacante, Territorio* defensor, Jogador* jAtual) {
+    int dadoAtq = (rand() % 6) + 1; // [cite: 26]
+    int dadoDef = (rand() % 6) + 1;
+
+    cout << "\n" << WHITE << "BATALHA: " << atacante->nome << " vs " << defensor->nome << RESET << endl;
+    cout << "Dados: Atacante [" << dadoAtq << "] | Defensor [" << dadoDef << "]" << endl;
+
+    if (dadoAtq > dadoDef) {
+        cout << GREEN << "VITÓRIA! O território foi conquistado!" << RESET << endl;
+        strcpy(defensor->cor, atacante->cor); // [cite: 27] Transfere a cor
+        defensor->tropas = atacante->tropas / 2; // [cite: 27] Metade das tropas
+        atacante->tropas -= defensor->tropas;
+        jAtual->sequenciaVitorias++;
+    } else {
+        cout << RED << "DERROTA! O ataque falhou." << RESET << endl;
+        if (atacante->tropas > 1) atacante->tropas--; // [cite: 28] Perde uma tropa
+        jAtual->sequenciaVitorias = 0;
+    }
+}
+
+int verificarMissao(Jogador* j, Territorio* mapa, int tamanho) {
+    if (strstr(j->missao, "seguidos")) return (j->sequenciaVitorias >= 3);
+
+    if (strstr(j->missao, "Vermelho")) {
+        for (int i = 0; i < tamanho; i++) {
+            if (strcmp(mapa[i].cor, "Vermelho") == 0) return 0;
+        }
+        return 1;
+    }
+
+    if (strstr(j->missao, "2 continentes")) {
+        int contFeitos = 0;
+        for (int c = 1; c <= 5; c++) {
+            bool domina = true;
+            for (int i = 0; i < tamanho; i++) {
+                if (mapa[i].continenteId == c && strcmp(mapa[i].cor, j->cor) != 0) domina = false;
+            }
+            if (domina) contFeitos++;
+        }
+        return (contFeitos >= 2);
+    }
+
+    if (strstr(j->missao, "America do Sul")) {
+        for (int i = 0; i < tamanho; i++) {
+            if (mapa[i].continenteId == 1 && strcmp(mapa[i].cor, j->cor) != 0) return 0;
+        }
+        return 1;
+    }
+
+    return 0; // Se não cumpriu nenhuma lógica
+}
+
+void exibirTabuleiro(Territorio* mapa, int n) {
+    cout << "\n========== MAPA DO MUNDO ==========" << endl;
+    for (int i = 0; i < n; i++) {
+        string corAnsi = WHITE;
+        if (strcmp(mapa[i].cor, "Vermelho") == 0) corAnsi = RED;
+        else if (strcmp(mapa[i].cor, "Verde") == 0) corAnsi = GREEN;
+        else if (strcmp(mapa[i].cor, "Amarelo") == 0) corAnsi = YELLOW;
+        else if (strcmp(mapa[i].cor, "Lilas") == 0) corAnsi = LIGHT_PURPLE;
+        else if (strcmp(mapa[i].cor, "Pink") == 0) corAnsi = PINK;
+
+        printf("%2d. %-15s (Exercito: %s%-10s%s, Tropas: %d)\n",
+               i, mapa[i].nome, corAnsi.c_str(), mapa[i].cor, RESET, mapa[i].tropas);
+    }
+}
+
+void liberarMemoria(Territorio* mapa, Jogador* j) {
+    if (j->missao) free(j->missao); // [cite: 29, 34]
+    if (mapa) free(mapa);
+    cout << "\n[SISTEMA] Memoria liberada. Fim de Jogo!" << endl;
