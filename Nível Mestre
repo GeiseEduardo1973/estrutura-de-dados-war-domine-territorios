@@ -21,7 +21,7 @@ using namespace std;
 #define LIGHT_PURPLE "\x1b[95m"
 #define RESET        "\x1b[0m"
 
-// [cite: 24] Estrutura conforme Requisito Funcional
+// Estrutura conforme Requisito Funcional
 struct Territorio {
     char nome[30];
     char cor[20];
@@ -66,7 +66,7 @@ const char* listaMissoes[] = {
 };
 
 int main() {
-    srand(time(NULL)); // [cite: 32]
+    srand(time(NULL)); 
     int n = 18;
 
     cout << LIGHT_PURPLE << "===================================================" << endl;
